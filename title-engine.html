@@ -450,34 +450,24 @@
     <p>Paste headlines from different outlets covering the same story. The AI reads across sources, extracts confirmed facts, and generates a Clearground title — no editorial framing, no spin.</p>
   </div>
 
-  <!-- API KEYS SETUP -->
+  <!-- API KEY SETUP -->
   <div class="api-setup">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-      <div>
-        <div class="api-setup-label">Anthropic API Key <span style="color:var(--amber);font-size:10px;">REQUIRED</span></div>
-        <div class="api-row">
-          <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." />
-          <button class="api-save-btn" onclick="saveApiKey()">Save</button>
-        </div>
-        <div class="api-status" id="apiStatus">Not set — required for AI title generation.</div>
+    <div>
+      <div class="api-setup-label">Anthropic API Key <span style="color:var(--amber);font-size:10px;">REQUIRED</span></div>
+      <div class="api-row">
+        <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." />
+        <button class="api-save-btn" onclick="saveApiKey()">Save</button>
       </div>
-      <div>
-        <div class="api-setup-label">NewsAPI.org Key <span style="color:var(--text-tertiary);font-size:10px;">for live fetch</span></div>
-        <div class="api-row">
-          <input type="password" class="api-input" id="newsApiKeyInput" placeholder="newsapi.org key…" />
-          <button class="api-save-btn" onclick="saveNewsApiKey()">Save</button>
-        </div>
-        <div class="api-status" id="newsApiStatus">Not set — needed to fetch live headlines.</div>
-      </div>
+      <div class="api-status" id="apiStatus">Not set — required for AI title generation.</div>
     </div>
-    <div class="api-note" style="margin-top:10px;">Keys are stored in session memory only. Anthropic key → api.anthropic.com. NewsAPI key → newsapi.org. Neither is logged or stored server-side.</div>
+    <div class="api-note" style="margin-top:8px;">Your Anthropic key is stored in session memory only and sent directly to api.anthropic.com. Your NewsAPI key is set as a Vercel environment variable — it never touches the browser.</div>
   </div>
 
   <!-- LIVE FETCH BAR -->
   <div class="input-section" id="fetchBar">
     <div class="input-header">
       <span class="input-header-label">Fetch live headlines</span>
-      <span style="font-size:11px;color:var(--text-tertiary);">Pulls real coverage from NewsAPI.org</span>
+      <span style="font-size:11px;color:var(--text-tertiary);">Pulls real coverage via server proxy</span>
     </div>
     <div style="padding:0.75rem 1.25rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <input type="text" id="fetchQuery" class="headline-input" style="flex:1;min-width:200px;" placeholder="Search topic — e.g. Federal Reserve, wildfire, Senate vote…" />
@@ -507,6 +497,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- HEADLINE INPUT EDITOR -->
   <div class="input-section">
@@ -617,22 +608,16 @@
 
 <script>
   var apiKey = sessionStorage.getItem('cg_api_key') || '';
-  var newsApiKey = sessionStorage.getItem('cg_newsapi_key') || '';
   var outletNames = ['AP', 'Reuters', 'BBC', 'NYT', 'WSJ', 'Guardian', 'NPR', 'Politico', 'Fox', 'CNN'];
   var rowCounter = 3;
-  var fetchedArticles = [];   // holds raw results from NewsAPI for the picker
+  var fetchedArticles = [];
   var selectedFetchIds = new Set();
 
-  // Init — restore saved keys
+  // Init — restore saved Anthropic key
   if (apiKey) {
     document.getElementById('apiKeyInput').value = apiKey;
     document.getElementById('apiStatus').textContent = '✓ Anthropic key loaded from session.';
     document.getElementById('apiStatus').className = 'api-status ready';
-  }
-  if (newsApiKey) {
-    document.getElementById('newsApiKeyInput').value = newsApiKey;
-    document.getElementById('newsApiStatus').textContent = '✓ NewsAPI key loaded from session.';
-    document.getElementById('newsApiStatus').className = 'api-status ready';
   }
 
   function saveApiKey() {
@@ -648,25 +633,8 @@
     document.getElementById('apiStatus').className = 'api-status ready';
   }
 
-  function saveNewsApiKey() {
-    var val = document.getElementById('newsApiKeyInput').value.trim();
-    if (!val || val.length < 10) {
-      document.getElementById('newsApiStatus').textContent = 'Enter a valid NewsAPI.org key.';
-      document.getElementById('newsApiStatus').className = 'api-status';
-      return;
-    }
-    newsApiKey = val;
-    sessionStorage.setItem('cg_newsapi_key', val);
-    document.getElementById('newsApiStatus').textContent = '✓ NewsAPI key saved for this session.';
-    document.getElementById('newsApiStatus').className = 'api-status ready';
-  }
-
   // ── LIVE HEADLINE FETCH ─────────────────────────────────────────────────
   async function fetchLiveHeadlines() {
-    if (!newsApiKey) {
-      showError('Enter and save your NewsAPI.org key first.');
-      return;
-    }
     var query    = document.getElementById('fetchQuery').value.trim();
     var category = document.getElementById('fetchCategory').value;
 
@@ -675,37 +643,19 @@
     document.getElementById('errorMsg').classList.remove('visible');
 
     try {
-      var url, params;
+      // Call our Vercel serverless proxy — avoids CORS and keeps the key server-side
+      var params = new URLSearchParams({ pageSize: '40' });
+      if (query)    params.set('q', query);
+      if (category) params.set('category', category);
 
-      if (query) {
-        // everything endpoint — search by keyword
-        params = new URLSearchParams({
-          apiKey: newsApiKey,
-          q: query,
-          language: 'en',
-          sortBy: 'publishedAt',
-          pageSize: '40'
-        });
-        url = 'https://newsapi.org/v2/everything?' + params;
-      } else {
-        // top-headlines endpoint — by category
-        params = new URLSearchParams({
-          apiKey: newsApiKey,
-          country: 'us',
-          pageSize: '40'
-        });
-        if (category) params.set('category', category);
-        url = 'https://newsapi.org/v2/top-headlines?' + params;
-      }
-
-      var resp = await fetch(url);
+      var resp = await fetch('/api/news?' + params);
       var data = await resp.json();
 
-      if (data.status !== 'ok') {
-        throw new Error(data.message || 'NewsAPI error');
+      if (!resp.ok) {
+        throw new Error(data.error || 'Server error ' + resp.status);
       }
 
-      // Filter out [Removed] articles
+      // Filter out [Removed] placeholder articles
       fetchedArticles = (data.articles || []).filter(function(a) {
         return a.title && a.title !== '[Removed]';
       });
@@ -713,7 +663,7 @@
       renderFetchResults(fetchedArticles);
 
     } catch (e) {
-      showError('NewsAPI fetch failed: ' + e.message + '. Check your key and try again.');
+      showError('Fetch failed: ' + e.message + '. Make sure NEWSAPI_KEY is set in your Vercel project environment variables.');
     } finally {
       document.getElementById('fetchBtnText').textContent = 'Fetch headlines';
       document.getElementById('fetchBtn').disabled = false;
