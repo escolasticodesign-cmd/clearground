@@ -450,21 +450,68 @@
     <p>Paste headlines from different outlets covering the same story. The AI reads across sources, extracts confirmed facts, and generates a Clearground title — no editorial framing, no spin.</p>
   </div>
 
-  <!-- API KEY SETUP -->
+  <!-- API KEYS SETUP -->
   <div class="api-setup">
-    <div class="api-setup-label">Anthropic API Key</div>
-    <div class="api-row">
-      <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." />
-      <button class="api-save-btn" onclick="saveApiKey()">Save Key</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <div class="api-setup-label">Anthropic API Key <span style="color:var(--amber);font-size:10px;">REQUIRED</span></div>
+        <div class="api-row">
+          <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." />
+          <button class="api-save-btn" onclick="saveApiKey()">Save</button>
+        </div>
+        <div class="api-status" id="apiStatus">Not set — required for AI title generation.</div>
+      </div>
+      <div>
+        <div class="api-setup-label">NewsAPI.org Key <span style="color:var(--text-tertiary);font-size:10px;">for live fetch</span></div>
+        <div class="api-row">
+          <input type="password" class="api-input" id="newsApiKeyInput" placeholder="newsapi.org key…" />
+          <button class="api-save-btn" onclick="saveNewsApiKey()">Save</button>
+        </div>
+        <div class="api-status" id="newsApiStatus">Not set — needed to fetch live headlines.</div>
+      </div>
     </div>
-    <div class="api-status" id="apiStatus">No key set — enter your Anthropic API key above to enable live generation.</div>
-    <div class="api-note">Your key is stored only in your browser's session memory and never sent anywhere except directly to api.anthropic.com.</div>
+    <div class="api-note" style="margin-top:10px;">Keys are stored in session memory only. Anthropic key → api.anthropic.com. NewsAPI key → newsapi.org. Neither is logged or stored server-side.</div>
   </div>
 
-  <!-- HEADLINE INPUT -->
+  <!-- LIVE FETCH BAR -->
+  <div class="input-section" id="fetchBar">
+    <div class="input-header">
+      <span class="input-header-label">Fetch live headlines</span>
+      <span style="font-size:11px;color:var(--text-tertiary);">Pulls real coverage from NewsAPI.org</span>
+    </div>
+    <div style="padding:0.75rem 1.25rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="fetchQuery" class="headline-input" style="flex:1;min-width:200px;" placeholder="Search topic — e.g. Federal Reserve, wildfire, Senate vote…" />
+      <select id="fetchCategory" style="padding:8px 12px;border:0.5px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text-primary);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;">
+        <option value="">All categories</option>
+        <option value="business">Business</option>
+        <option value="general">General</option>
+        <option value="health">Health</option>
+        <option value="science">Science</option>
+        <option value="technology">Technology</option>
+        <option value="politics">Politics</option>
+      </select>
+      <button class="api-save-btn" id="fetchBtn" onclick="fetchLiveHeadlines()" style="white-space:nowrap;">
+        <span id="fetchBtnText">Fetch headlines</span>
+      </button>
+    </div>
+    <!-- Live results picker -->
+    <div id="fetchResults" style="display:none;border-top:0.5px solid var(--border);padding:0.75rem 1.25rem;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-tertiary);font-weight:500;margin-bottom:8px;">
+        Select headlines to analyse <span id="fetchResultCount"></span>
+      </div>
+      <div id="fetchResultsList" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="add-btn" onclick="selectAllFetchResults()">Select all</button>
+        <button class="add-btn" onclick="clearFetchSelection()">Clear</button>
+        <button class="api-save-btn" onclick="loadSelectedIntoEditor()" style="margin-left:auto;">Load selected →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADLINE INPUT EDITOR -->
   <div class="input-section">
     <div class="input-header">
-      <span class="input-header-label">Outlet headlines</span>
+      <span class="input-header-label">Headlines to analyse</span>
       <span class="headline-count" id="headlineCount">3 headlines</span>
     </div>
     <div class="headlines-list" id="headlinesList">
@@ -570,14 +617,22 @@
 
 <script>
   var apiKey = sessionStorage.getItem('cg_api_key') || '';
+  var newsApiKey = sessionStorage.getItem('cg_newsapi_key') || '';
   var outletNames = ['AP', 'Reuters', 'BBC', 'NYT', 'WSJ', 'Guardian', 'NPR', 'Politico', 'Fox', 'CNN'];
   var rowCounter = 3;
+  var fetchedArticles = [];   // holds raw results from NewsAPI for the picker
+  var selectedFetchIds = new Set();
 
-  // Init
+  // Init — restore saved keys
   if (apiKey) {
     document.getElementById('apiKeyInput').value = apiKey;
-    document.getElementById('apiStatus').textContent = '✓ API key loaded from session.';
+    document.getElementById('apiStatus').textContent = '✓ Anthropic key loaded from session.';
     document.getElementById('apiStatus').className = 'api-status ready';
+  }
+  if (newsApiKey) {
+    document.getElementById('newsApiKeyInput').value = newsApiKey;
+    document.getElementById('newsApiStatus').textContent = '✓ NewsAPI key loaded from session.';
+    document.getElementById('newsApiStatus').className = 'api-status ready';
   }
 
   function saveApiKey() {
@@ -591,6 +646,156 @@
     sessionStorage.setItem('cg_api_key', val);
     document.getElementById('apiStatus').textContent = '✓ Key saved for this session.';
     document.getElementById('apiStatus').className = 'api-status ready';
+  }
+
+  function saveNewsApiKey() {
+    var val = document.getElementById('newsApiKeyInput').value.trim();
+    if (!val || val.length < 10) {
+      document.getElementById('newsApiStatus').textContent = 'Enter a valid NewsAPI.org key.';
+      document.getElementById('newsApiStatus').className = 'api-status';
+      return;
+    }
+    newsApiKey = val;
+    sessionStorage.setItem('cg_newsapi_key', val);
+    document.getElementById('newsApiStatus').textContent = '✓ NewsAPI key saved for this session.';
+    document.getElementById('newsApiStatus').className = 'api-status ready';
+  }
+
+  // ── LIVE HEADLINE FETCH ─────────────────────────────────────────────────
+  async function fetchLiveHeadlines() {
+    if (!newsApiKey) {
+      showError('Enter and save your NewsAPI.org key first.');
+      return;
+    }
+    var query    = document.getElementById('fetchQuery').value.trim();
+    var category = document.getElementById('fetchCategory').value;
+
+    document.getElementById('fetchBtnText').textContent = 'Fetching…';
+    document.getElementById('fetchBtn').disabled = true;
+    document.getElementById('errorMsg').classList.remove('visible');
+
+    try {
+      var url, params;
+
+      if (query) {
+        // everything endpoint — search by keyword
+        params = new URLSearchParams({
+          apiKey: newsApiKey,
+          q: query,
+          language: 'en',
+          sortBy: 'publishedAt',
+          pageSize: '40'
+        });
+        url = 'https://newsapi.org/v2/everything?' + params;
+      } else {
+        // top-headlines endpoint — by category
+        params = new URLSearchParams({
+          apiKey: newsApiKey,
+          country: 'us',
+          pageSize: '40'
+        });
+        if (category) params.set('category', category);
+        url = 'https://newsapi.org/v2/top-headlines?' + params;
+      }
+
+      var resp = await fetch(url);
+      var data = await resp.json();
+
+      if (data.status !== 'ok') {
+        throw new Error(data.message || 'NewsAPI error');
+      }
+
+      // Filter out [Removed] articles
+      fetchedArticles = (data.articles || []).filter(function(a) {
+        return a.title && a.title !== '[Removed]';
+      });
+
+      renderFetchResults(fetchedArticles);
+
+    } catch (e) {
+      showError('NewsAPI fetch failed: ' + e.message + '. Check your key and try again.');
+    } finally {
+      document.getElementById('fetchBtnText').textContent = 'Fetch headlines';
+      document.getElementById('fetchBtn').disabled = false;
+    }
+  }
+
+  function renderFetchResults(articles) {
+    var list = document.getElementById('fetchResultsList');
+    var count = document.getElementById('fetchResultCount');
+    selectedFetchIds.clear();
+    list.innerHTML = '';
+
+    if (!articles.length) {
+      list.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary);padding:8px 0;">No results found. Try a different query.</div>';
+      document.getElementById('fetchResults').style.display = 'block';
+      count.textContent = '';
+      return;
+    }
+
+    count.textContent = '— ' + articles.length + ' found';
+    articles.forEach(function(a, i) {
+      var source = (a.source || {}).name || 'Unknown';
+      var pub = a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      var row = document.createElement('label');
+      row.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:6px;cursor:pointer;border:0.5px solid var(--border);background:var(--surface);';
+      row.innerHTML =
+        '<input type="checkbox" data-idx="' + i + '" onchange="toggleFetchSelect(this,' + i + ')" style="margin-top:3px;accent-color:var(--teal);flex-shrink:0;" />' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:13px;color:var(--text-primary);line-height:1.4;">' + escHtml(a.title) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-tertiary);margin-top:3px;">' + escHtml(source) + (pub ? ' · ' + pub : '') + '</div>' +
+        '</div>';
+      list.appendChild(row);
+    });
+    document.getElementById('fetchResults').style.display = 'block';
+  }
+
+  function toggleFetchSelect(cb, idx) {
+    if (cb.checked) selectedFetchIds.add(idx);
+    else selectedFetchIds.delete(idx);
+  }
+
+  function selectAllFetchResults() {
+    document.querySelectorAll('#fetchResultsList input[type=checkbox]').forEach(function(cb) {
+      cb.checked = true;
+      selectedFetchIds.add(parseInt(cb.dataset.idx));
+    });
+  }
+
+  function clearFetchSelection() {
+    document.querySelectorAll('#fetchResultsList input[type=checkbox]').forEach(function(cb) {
+      cb.checked = false;
+    });
+    selectedFetchIds.clear();
+  }
+
+  function loadSelectedIntoEditor() {
+    if (selectedFetchIds.size === 0) {
+      showError('Select at least one headline to load.');
+      return;
+    }
+    var list = document.getElementById('headlinesList');
+    list.innerHTML = '';
+    rowCounter = 0;
+
+    Array.from(selectedFetchIds).sort(function(a,b){return a-b;}).forEach(function(idx) {
+      var a = fetchedArticles[idx];
+      if (!a) return;
+      var source = (a.source || {}).name || 'Source';
+      var row = document.createElement('div');
+      row.className = 'headline-row';
+      row.setAttribute('data-index', rowCounter++);
+      row.innerHTML =
+        '<span class="outlet-tag" contenteditable="true" style="outline:none;">' + escHtml(source) + '</span>' +
+        '<input type="text" class="headline-input" value="' + escHtml(a.title).replace(/"/g,'&quot;') + '" oninput="updateCount()" />' +
+        '<button class="remove-btn" onclick="removeRow(this)" title="Remove">×</button>';
+      list.appendChild(row);
+    });
+
+    updateCount();
+    // Scroll down to editor
+    document.getElementById('headlinesList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('errorMsg').classList.remove('visible');
   }
 
   function updateCount() {
