@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clearground — Facts, staged. No spin.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --teal: #1D9E75;
+      --teal-light: #E1F5EE;
+      --teal-dark: #085041;
+      --amber: #EF9F27;
+      --amber-light: #FAEEDA;
+      --amber-dark: #633806;
+      --gray-50: #F1EFE8;
+      --gray-200: #B4B2A9;
+      --gray-400: #888780;
+      --gray-600: #5F5E5A;
+      --gray-800: #444441;
+      --blue-light: #E6F1FB;
+      --blue-dark: #0C447C;
+      --bg: #F7F6F3;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --border-strong: rgba(0,0,0,0.18);
+      --text-primary: #1a1a18;
+      --text-secondary: #5F5E5A;
+      --text-tertiary: #888780;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --surface: #232320;
+        --border: rgba(255,255,255,0.1);
+        --border-strong: rgba(255,255,255,0.18);
+        --text-primary: #F1EFE8;
+        --text-secondary: #B4B2A9;
+        --text-tertiary: #888780;
+        --teal-light: #04342C;
+        --teal-dark: #9FE1CB;
+        --amber-light: #412402;
+        --amber-dark: #FAC775;
+        --blue-light: #042C53;
+        --blue-dark: #B5D4F4;
+        --gray-50: #2C2C2A;
+      }
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+    .logo .cl { color: var(--text-primary); }
+    .logo .gr { color: var(--teal); }
+
+    .tagline {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    .nav-links a:hover { color: var(--teal); }
+
+    /* HERO */
+    .hero {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2.5rem 2rem 0.75rem;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 32px;
+      color: var(--text-primary);
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .hero p {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* FILTERS */
+    .filter-bar {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 1rem 2rem 0.25rem;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .pill {
+      font-size: 12px;
+      font-family: 'DM Sans', sans-serif;
+      padding: 5px 14px;
+      border-radius: 99px;
+      border: 0.5px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .pill.active, .pill:hover {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #fff;
+    }
+
+    /* SECTION LABEL */
+    .section-label {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 1.25rem 2rem 0.5rem;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+
+    /* FEED */
+    .feed {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 1rem;
+    }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color 0.15s;
+      cursor: pointer;
+    }
+    .card:hover { border-color: var(--border-strong); }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 1rem 1.25rem 0.75rem;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+    .dot-developing { background: var(--amber); }
+    .dot-ongoing { background: var(--teal); }
+    .dot-settled { background: var(--gray-400); }
+
+    .card-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px;
+      color: var(--text-primary);
+      line-height: 1.35;
+      flex: 1;
+    }
+
+    /* FORMULA CHIPS */
+    .formula-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 0 1.25rem 0.75rem;
+    }
+    .chip {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.03em;
+    }
+    .chip-who   { background: var(--teal-light);  color: var(--teal-dark); }
+    .chip-what  { background: var(--blue-light);  color: var(--blue-dark); }
+    .chip-number{ background: var(--amber-light); color: var(--amber-dark); }
+    .chip-status{ background: var(--gray-50);     color: var(--gray-800); }
+
+    /* META BAR */
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 0 1.25rem; }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 1.25rem;
+    }
+    .meta-item {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .pips { display: flex; gap: 3px; align-items: center; }
+    .pip {
+      width: 10px; height: 4px;
+      border-radius: 2px;
+      background: var(--border-strong);
+    }
+    .pip.filled { background: var(--teal); }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 9px;
+      border-radius: 4px;
+      margin-left: auto;
+    }
+    .badge-developing { background: var(--amber-light); color: var(--amber-dark); }
+    .badge-ongoing    { background: var(--teal-light);  color: var(--teal-dark); }
+    .badge-settled    { background: var(--gray-50);     color: var(--gray-800); }
+
+    /* EXPAND ROW */
+    .expand-row {
+      padding: 0.6rem 1.25rem;
+      display: flex;
+      align-items: center;
+    }
+    .toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--teal);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      padding: 0;
+    }
+    .toggle-arrow { font-size: 10px; transition: transform 0.2s; }
+    .toggle-arrow.open { transform: rotate(180deg); }
+
+    /* TIMELINE */
+    .timeline {
+      display: none;
+      border-top: 0.5px solid var(--border);
+      padding: 1.25rem;
+    }
+    .timeline.open { display: block; }
+
+    .timeline-header {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 1.25rem;
+      font-weight: 500;
+    }
+
+    .stages {
+      position: relative;
+      padding-left: 22px;
+      display: flex;
+      flex-direction: column;
+    }
+    .stages::before {
+      content: '';
+      position: absolute;
+      left: 5px; top: 8px; bottom: 8px;
+      width: 1px;
+      background: var(--border);
+    }
+
+    .stage { position: relative; padding-bottom: 1.25rem; }
+    .stage:last-child { padding-bottom: 0; }
+
+    .stage-dot {
+      position: absolute;
+      left: -21px; top: 5px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1.5px solid var(--border-strong);
+    }
+    .stage-dot.active {
+      border-color: var(--teal);
+      background: var(--teal);
+    }
+
+    .stage-date {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+    }
+    .stage-fact {
+      font-size: 14px;
+      color: var(--text-primary);
+      line-height: 1.55;
+    }
+    .stage-source {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      background: var(--gray-50);
+      border-radius: 4px;
+      padding: 2px 7px;
+      margin-top: 5px;
+    }
+
+    /* CALLOUTS */
+    .spin-callout {
+      display: flex;
+      gap: 8px;
+      background: var(--amber-light);
+      border-left: 2px solid var(--amber);
+      border-radius: 0 4px 4px 0;
+      padding: 8px 10px;
+      margin-top: 10px;
+    }
+    .spin-text { font-size: 12px; color: var(--amber-dark); line-height: 1.5; }
+    .spin-text strong {
+      font-weight: 600;
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .unknown-callout {
+      display: flex;
+      gap: 8px;
+      background: var(--gray-50);
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-top: 10px;
+      border: 0.5px solid var(--border);
+    }
+    .unknown-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+    .unknown-text strong {
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* FOOTER */
+    footer {
+      max-width: 820px;
+      margin: 2rem auto 0;
+      padding: 1.5rem 2rem;
+      border-top: 0.5px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer .logo { font-size: 16px; }
+    footer p {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    @media (max-width: 600px) {
+      nav { padding: 0.75rem 1rem; }
+      .hero, .filter-bar, .section-label, .feed, footer { padding-left: 1rem; padding-right: 1rem; }
+      .hero h1 { font-size: 24px; }
+      .nav-links { gap: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div>
+      <div class="logo"><span class="cl">Clear</span><span class="gr">ground</span></div>
+      <div class="tagline">Facts, staged — no spin</div>
+    </div>
+    <div class="nav-links">
+      <a href="#">Today</a>
+      <a href="#">Following</a>
+      <a href="#">About</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>What actually happened today</h1>
+    <p>Every story is a living factual record. Facts only — staged by confirmation, not publication time.</p>
+  </div>
+
+  <div class="filter-bar">
+    <button class="pill active">All</button>
+    <button class="pill">Politics</button>
+    <button class="pill">Economy</button>
+    <button class="pill">Environment</button>
+    <button class="pill">International</button>
+    <button class="pill">Science</button>
+  </div>
+
+  <div class="section-label">Developing</div>
+
+  <div class="feed">
+
+    <!-- CARD 1: Developing -->
+    <div class="card">
+      <div class="card-header">
+        <div class="status-dot dot-developing"></div>
+        <div class="card-title">Riverside County wildfire burned 5,100 acres; cause under investigation</div>
+      </div>
+      <div class="formula-row">
+        <span class="chip chip-who">Where: Riverside County</span>
+        <span class="chip chip-what">What: wildfire</span>
+        <span class="chip chip-number">Number: 5,100 acres</span>
+        <span class="chip chip-status">Status: cause under investigation</span>
+      </div>
+      <hr class="divider">
+      <div class="card-meta">
+        <div class="meta-item">
+          <div class="pips">
+            <div class="pip filled"></div><div class="pip filled"></div>
+            <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+          </div>
+          <span>2 / 5</span>
+        </div>
+        <div class="meta-item">3 updates</div>
+        <div class="meta-item">2h ago</div>
+        <span class="status-badge badge-developing">Developing</span>
+      </div>
+      <hr class="divider">
+      <div class="expand-row">
+        <button class="toggle-btn" onclick="toggle(this)">
+          View staged timeline <span class="toggle-arrow">▾</span>
+        </button>
+      </div>
+      <div class="timeline">
+        <div class="timeline-header">Staged facts</div>
+        <div class="stages">
+          <div class="stage">
+            <div class="stage-dot"></div>
+            <div class="stage-date">Mar 17 — 6:14 AM</div>
+            <div class="stage-fact">Fire reported in the Cabazon area of Riverside County, CA. First responders dispatched.</div>
+            <span class="stage-source">Cal Fire press release</span>
+          </div>
+          <div class="stage">
+            <div class="stage-dot"></div>
+            <div class="stage-date">Mar 17 — 9:30 AM</div>
+            <div class="stage-fact">Containment at 0%. Mandatory evacuation orders issued for 3 communities — approx. 1,200 households.</div>
+            <span class="stage-source">Riverside County OES</span>
+            <div class="spin-callout">
+              <div class="spin-text"><strong>Spin detected: Framing</strong>AP headline "Raging inferno forces thousands to flee" uses emotional language not present in official reports.</div>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="stage-dot active"></div>
+            <div class="stage-date">Mar 17 — 11:45 AM</div>
+            <div class="stage-fact">Burned area confirmed at 5,100 acres. Fire 15% contained. No fatalities confirmed. Cause not yet determined.</div>
+            <span class="stage-source">Cal Fire incident report</span>
+            <div class="unknown-callout">
+              <div class="unknown-text"><strong>Not yet known</strong>Ignition cause, full structure damage count, and estimated containment timeline remain unconfirmed.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: Ongoing -->
+    <div class="card">
+      <div class="card-header">
+        <div class="status-dot dot-ongoing"></div>
+        <div class="card-title">Federal Reserve held federal funds rate at 4.25–4.50% for third consecutive meeting</div>
+      </div>
+      <div class="formula-row">
+        <span class="chip chip-who">Who: Federal Reserve</span>
+        <span class="chip chip-what">What: held rate</span>
+        <span class="chip chip-number">Number: 4.25–4.50%</span>
+        <span class="chip chip-status">Status: 3rd consecutive hold</span>
+      </div>
+      <hr class="divider">
+      <div class="card-meta">
+        <div class="meta-item">
+          <div class="pips">
+            <div class="pip filled"></div><div class="pip filled"></div>
+            <div class="pip filled"></div><div class="pip filled"></div>
+            <div class="pip"></div>
+          </div>
+          <span>4 / 5</span>
+        </div>
+        <div class="meta-item">5 updates</div>
+        <div class="meta-item">1d ago</div>
+        <span class="status-badge badge-ongoing">Ongoing</span>
+      </div>
+      <hr class="divider">
+      <div class="expand-row">
+        <button class="toggle-btn" onclick="toggle(this)">
+          View staged timeline <span class="toggle-arrow">▾</span>
+        </button>
+      </div>
+      <div class="timeline">
+        <div class="timeline-header">Staged facts</div>
+        <div class="stages">
+          <div class="stage">
+            <div class="stage-dot"></div>
+            <div class="stage-date">Mar 16 — 2:00 PM</div>
+            <div class="stage-fact">FOMC meeting concluded. Federal funds target rate maintained at 4.25–4.50%.</div>
+            <span class="stage-source">Federal Reserve press release</span>
+            <div class="spin-callout">
+              <div class="spin-text"><strong>Spin detected: Narrative</strong>WSJ headline "Fed refuses to cut despite mounting pressure" uses narrative framing. Decision was unanimous per FOMC vote record.</div>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="stage-dot"></div>
+            <div class="stage-date">Mar 16 — 2:30 PM</div>
+            <div class="stage-fact">Chair Powell cited "elevated uncertainty" and "inflation still above 2% target." Vote was 11–0.</div>
+            <span class="stage-source">Fed Chair press conference transcript</span>
+          </div>
+          <div class="stage">
+            <div class="stage-dot active"></div>
+            <div class="stage-date">Mar 17 — 8:00 AM</div>
+            <div class="stage-fact">This is the third consecutive meeting with no rate change. Previous holds: Jan 29 and Dec 18, 2025.</div>
+            <span class="stage-source">Federal Reserve meeting history</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Settled</div>
+
+  <div class="feed">
+
+    <!-- CARD 3: Settled -->
+    <div class="card">
+      <div class="card-header">
+        <div class="status-dot dot-settled"></div>
+        <div class="card-title">Senate passed $1.2T government funding bill 72–28; signed into law March 14</div>
+      </div>
+      <div class="formula-row">
+        <span class="chip chip-who">Who: US Senate</span>
+        <span class="chip chip-what">What: passed funding bill</span>
+        <span class="chip chip-number">Number: $1.2T, 72–28 vote</span>
+        <span class="chip chip-status">Status: signed into law</span>
+      </div>
+      <hr class="divider">
+      <div class="card-meta">
+        <div class="meta-item">
+          <div class="pips">
+            <div class="pip filled"></div><div class="pip filled"></div>
+            <div class="pip filled"></div><div class="pip filled"></div>
+            <div class="pip filled"></div>
+          </div>
+          <span>5 / 5</span>
+        </div>
+        <div class="meta-item">7 updates</div>
+        <div class="meta-item">3d ago</div>
+        <span class="status-badge badge-settled">Settled</span>
+      </div>
+      <hr class="divider">
+      <div class="expand-row">
+        <button class="toggle-btn" onclick="toggle(this)">
+          View staged timeline <span class="toggle-arrow">▾</span>
+        </button>
+      </div>
+      <div class="timeline">
+        <div class="timeline-header">Staged facts</div>
+        <div class="stages">
+          <div class="stage">
+            <div class="stage-dot"></div>
+            <div class="stage-date">Mar 11</div>
+            <div class="stage-fact">House passed continuing resolution 218–207. Bill forwarded to Senate for vote.</div>
+            <span class="stage-source">House Clerk vote record</span>
+          </div>
+          <div class="stage">
+            <div class="stage-dot"></div>
+            <div class="stage-date">Mar 13</div>
+            <div class="stage-fact">Senate passed amended $1.2T omnibus funding bill 72–28. Funds government through Sep 30.</div>
+            <span class="stage-source">Senate Clerk vote record</span>
+            <div class="spin-callout">
+              <div class="spin-text"><strong>Spin detected: Loaded</strong>Fox headline "Democrats' bloated spending package" — bill passed with 72 votes including 18 Republicans.</div>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="stage-dot active"></div>
+            <div class="stage-date">Mar 14</div>
+            <div class="stage-fact">President signed bill into law at 4:12 PM EST. Government shutdown averted. Funding: Oct 1, 2025 – Sep 30, 2026.</div>
+            <span class="stage-source">White House press office</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <div>
+      <div class="logo"><span class="cl">Clear</span><span class="gr">ground</span></div>
+      <p style="margin-top:4px;">Facts, staged — no spin</p>
+    </div>
+    <p>Version 1.0 &mdash; March 2026</p>
+  </footer>
+
+  <script>
+    function toggle(btn) {
+      var arrow = btn.querySelector('.toggle-arrow');
+      var timeline = btn.closest('.card').querySelector('.timeline');
+      var isOpen = timeline.classList.toggle('open');
+      arrow.classList.toggle('open', isOpen);
+      btn.querySelector('span:first-child') || null;
+    }
+
+    document.querySelectorAll('.pill').forEach(function(p) {
+      p.addEventListener('click', function() {
+        document.querySelectorAll('.pill').forEach(function(x){ x.classList.remove('active'); });
+        p.classList.add('active');
+      });
+    });
+  </script>
+
+</body>
+</html>
