@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Clearground — Data Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#1D9E75;--teal-light:#E1F5EE;--teal-dark:#085041;
+  --amber:#EF9F27;--amber-light:#FAEEDA;--amber-dark:#633806;
+  --bg:#F7F6F3;--surface:#ffffff;--surface2:#F1EFE8;
+  --border:rgba(0,0,0,0.08);--border-strong:rgba(0,0,0,0.15);
+  --text-primary:#1a1a18;--text-secondary:#5F5E5A;--text-tertiary:#888780;
+  --blue-light:#E6F1FB;--blue-dark:#0C447C;
+  --code-bg:#1e1e1e;--code-text:#D4D4D4;
+  --keyword:#569CD6;--string:#CE9178;--comment:#6A9955;--fn:#DCDCAA;--number:#B5CEA8;--type:#4EC9B0;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a18;--surface:#232320;--surface2:#2C2C2A;
+    --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.15);
+    --text-primary:#F1EFE8;--text-secondary:#B4B2A9;--text-tertiary:#888780;
+    --teal-light:#04342C;--teal-dark:#9FE1CB;
+    --amber-light:#412402;--amber-dark:#FAC775;
+    --blue-light:#042C53;--blue-dark:#B5D4F4;
+    --code-bg:#141412;
+  }
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;line-height:1.6}
+nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;background:var(--surface);border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:100}
+.logo{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-0.02em}
+.logo .cl{color:var(--text-primary)}.logo .gr{color:var(--teal)}
+.tagline{font-size:10px;color:var(--text-tertiary);letter-spacing:0.08em;text-transform:uppercase;margin-top:2px}
+.nav-badge{font-size:11px;background:var(--teal-light);color:var(--teal-dark);padding:3px 10px;border-radius:99px;font-weight:500}
+
+main{max-width:900px;margin:0 auto;padding:2rem 2rem 4rem}
+.page-header{margin-bottom:2.5rem;padding-bottom:1.5rem;border-bottom:0.5px solid var(--border)}
+.page-header h1{font-family:'DM Serif Display',serif;font-size:28px;margin-bottom:6px}
+.page-header p{font-size:14px;color:var(--text-secondary);max-width:560px;line-height:1.6}
+
+/* PIPELINE NAV */
+.pipeline-nav{display:flex;gap:6px;margin-bottom:2rem;overflow-x:auto;padding-bottom:4px}
+.stage-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:0.5px solid var(--border);background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text-secondary);white-space:nowrap;transition:all 0.15s}
+.stage-btn:hover{border-color:var(--border-strong)}
+.stage-btn.active{background:var(--teal);border-color:var(--teal);color:#fff}
+.stage-num{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600}
+.stage-btn:not(.active) .stage-num{background:var(--surface2);color:var(--text-tertiary)}
+
+/* STAGE PANEL */
+.stage-panel{display:none}.stage-panel.active{display:block}
+.stage-header{display:flex;align-items:flex-start;gap:16px;margin-bottom:1.5rem}
+.stage-icon{width:44px;height:44px;border-radius:10px;background:var(--teal-light);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.stage-title{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text-primary);margin-bottom:4px}
+.stage-desc{font-size:14px;color:var(--text-secondary);line-height:1.6}
+
+/* CALLOUT */
+.callout{border-radius:8px;padding:12px 16px;margin-bottom:1.25rem;font-size:13px;line-height:1.6}
+.callout-teal{background:var(--teal-light);border-left:2px solid var(--teal)}
+.callout-teal strong{color:var(--teal-dark);display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.callout-amber{background:var(--amber-light);border-left:2px solid var(--amber)}
+.callout-amber strong{color:var(--amber-dark);display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.callout-teal p,.callout-amber p{color:var(--text-secondary)}
+
+/* CODE BLOCK */
+.code-block{background:var(--code-bg);border-radius:10px;overflow:hidden;margin-bottom:1.5rem;border:0.5px solid rgba(255,255,255,0.06)}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(255,255,255,0.04);border-bottom:0.5px solid rgba(255,255,255,0.06)}
+.code-label{font-size:12px;color:#888;font-family:'JetBrains Mono',monospace}
+.copy-btn{font-size:11px;color:#666;background:none;border:0.5px solid rgba(255,255,255,0.12);padding:3px 10px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.copy-btn:hover{background:rgba(255,255,255,0.08);color:#aaa}
+pre{padding:18px 20px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.7;color:var(--code-text)}
+.kw{color:var(--keyword)}.str{color:var(--string)}.cm{color:var(--comment)}.fn{color:var(--fn)}.num{color:var(--number)}.tp{color:var(--type)}
+
+/* SECTION HEADING */
+.section-label{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-tertiary);font-weight:500;margin:1.5rem 0 0.75rem}
+
+/* FLOW ARROWS */
+.stage-flow{display:flex;align-items:center;gap:0;margin-bottom:2rem;background:var(--surface);border:0.5px solid var(--border);border-radius:10px;overflow:hidden}
+.flow-step{flex:1;padding:12px 10px;text-align:center;position:relative}
+.flow-step:not(:last-child)::after{content:'→';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);font-size:14px;z-index:1}
+.flow-step-label{font-size:11px;font-weight:500;color:var(--text-primary);margin-bottom:2px}
+.flow-step-sub{font-size:10px;color:var(--text-tertiary)}
+.flow-step.active-step{background:var(--teal-light)}
+.flow-step.active-step .flow-step-label{color:var(--teal-dark)}
+
+footer{max-width:900px;margin:0 auto;padding:1.5rem 2rem;border-top:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+footer p{font-size:12px;color:var(--text-tertiary)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div>
+    <div class="logo"><span class="cl">Clear</span><span class="gr">ground</span></div>
+    <div class="tagline">Facts, staged — no spin</div>
+  </div>
+  <span class="nav-badge">Pipeline Reference</span>
+  <div style="display:flex;gap:1.25rem;align-items:center">
+    <a href="index.html" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Today</a>
+    <a href="title-engine.html" style="font-size:13px;color:var(--text-secondary);text-decoration:none">Title Engine</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Data Pipeline — Code Reference</h1>
+    <p>Each stage of the Clearground ingest and processing pipeline, with working Python code. Start with Stage 1 and work through sequentially, or jump to any stage.</p>
+  </div>
+
+  <!-- Pipeline overview flow -->
+  <div class="stage-flow">
+    <div class="flow-step" id="flow-0"><div class="flow-step-label">1. Ingest</div><div class="flow-step-sub">RSS + APIs</div></div>
+    <div class="flow-step" id="flow-1"><div class="flow-step-label">2. Fetch</div><div class="flow-step-sub">Full text</div></div>
+    <div class="flow-step" id="flow-2"><div class="flow-step-label">3. Cluster</div><div class="flow-step-sub">Group events</div></div>
+    <div class="flow-step" id="flow-3"><div class="flow-step-label">4. Extract</div><div class="flow-step-sub">AI facts</div></div>
+    <div class="flow-step" id="flow-4"><div class="flow-step-label">5. Title</div><div class="flow-step-sub">AI title</div></div>
+    <div class="flow-step" id="flow-5"><div class="flow-step-label">6. Spin</div><div class="flow-step-sub">AI detect</div></div>
+  </div>
+
+  <!-- STAGE NAV -->
+  <div class="pipeline-nav">
+    <button class="stage-btn active" onclick="switchStage(0)"><span class="stage-num">1</span>Ingest</button>
+    <button class="stage-btn" onclick="switchStage(1)"><span class="stage-num">2</span>Full-text fetch</button>
+    <button class="stage-btn" onclick="switchStage(2)"><span class="stage-num">3</span>Clustering</button>
+    <button class="stage-btn" onclick="switchStage(3)"><span class="stage-num">4</span>Fact extraction</button>
+    <button class="stage-btn" onclick="switchStage(4)"><span class="stage-num">5</span>Title engine</button>
+    <button class="stage-btn" onclick="switchStage(5)"><span class="stage-num">6</span>Spin detection</button>
+  </div>
+
+  <!-- STAGE 1: INGEST -->
+  <div class="stage-panel active" id="stage-0">
+    <div class="stage-header">
+      <div class="stage-icon">📡</div>
+      <div>
+        <div class="stage-title">Stage 1 — News ingest</div>
+        <div class="stage-desc">Pull headlines and metadata from free news APIs and RSS feeds. This gives you article URLs and snippets — enough to detect breaking stories and cluster by event before fetching full text.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal"><strong>What you get from this stage</strong><p>Article title, URL, source name, published timestamp, and a short snippet. Not enough for fact extraction — but enough to detect what stories are breaking and group them.</p></div>
+    <div class="section-label">Install</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre>pip install requests feedparser python-dateutil</pre></div>
+    <div class="section-label">newsapi_ingest.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">import</span> requests
+<span class="kw">import</span> feedparser
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime, timezone
+<span class="kw">from</span> dataclasses <span class="kw">import</span> dataclass
+<span class="kw">from</span> typing <span class="kw">import</span> <span class="tp">List</span>
+
+<span class="cm"># Free sources — no auth required</span>
+FREE_RSS_FEEDS = [
+    <span class="str">"https://feeds.ap.org/rss/apf-topnews"</span>,           <span class="cm"># AP (wire service, high quality)</span>
+    <span class="str">"https://feeds.reuters.com/reuters/topNews"</span>,        <span class="cm"># Reuters</span>
+    <span class="str">"https://content.api.nytimes.com/svc/news/v3/all/recent.rss"</span>,
+    <span class="str">"https://www.theguardian.com/world/rss"</span>,
+    <span class="str">"https://rss.politico.com/politics-news.xml"</span>,
+    <span class="str">"https://feeds.npr.org/1001/rss.xml"</span>,
+    <span class="str">"https://www.federalreserve.gov/feeds/press_all.xml"</span>, <span class="cm"># Primary: Fed</span>
+    <span class="str">"https://www.whitehouse.gov/feed/"</span>,                  <span class="cm"># Primary: White House</span>
+    <span class="str">"https://www.congress.gov/rss/most-recent-bills.xml"</span>, <span class="cm"># Primary: Congress</span>
+]
+
+<span class="cm"># Optional: NewsData.io — free tier, 200 credits/day, commercial OK</span>
+NEWSDATA_API_KEY = <span class="str">"YOUR_KEY_HERE"</span>
+NEWSDATA_URL = <span class="str">"https://newsdata.io/api/1/news"</span>
+
+<span class="tp">@dataclass</span>
+<span class="kw">class</span> <span class="tp">Article</span>:
+    title: str
+    url: str
+    source: str
+    published: datetime
+    snippet: str
+    full_text: str = <span class="str">""</span>       <span class="cm"># filled in Stage 2</span>
+    cluster_id: str = <span class="str">""</span>    <span class="cm"># assigned in Stage 3</span>
+
+<span class="kw">def</span> <span class="fn">ingest_rss</span>(feed_url: str) -> <span class="tp">List</span>[<span class="tp">Article</span>]:
+    <span class="str">"""Parse an RSS feed and return Article objects."""</span>
+    feed = feedparser.parse(feed_url)
+    articles = []
+    <span class="kw">for</span> entry <span class="kw">in</span> feed.entries[:20]:  <span class="cm"># cap per feed</span>
+        published = datetime.now(timezone.utc)
+        <span class="kw">if</span> hasattr(entry, <span class="str">'published_parsed'</span>) <span class="kw">and</span> entry.published_parsed:
+            published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+        articles.append(<span class="tp">Article</span>(
+            title=entry.get(<span class="str">'title'</span>, <span class="str">''</span>).strip(),
+            url=entry.get(<span class="str">'link'</span>, <span class="str">''</span>),
+            source=feed.feed.get(<span class="str">'title'</span>, feed_url),
+            published=published,
+            snippet=entry.get(<span class="str">'summary'</span>, <span class="str">''</span>)[:500],
+        ))
+    <span class="kw">return</span> articles
+
+<span class="kw">def</span> <span class="fn">ingest_newsdata</span>(query: str = <span class="str">""</span>, language: str = <span class="str">"en"</span>) -> <span class="tp">List</span>[<span class="tp">Article</span>]:
+    <span class="str">"""Pull from NewsData.io free tier (200 credits/day)."""</span>
+    params = {<span class="str">"apikey"</span>: NEWSDATA_API_KEY, <span class="str">"language"</span>: language}
+    <span class="kw">if</span> query:
+        params[<span class="str">"q"</span>] = query
+    resp = requests.get(NEWSDATA_URL, params=params, timeout=10)
+    resp.raise_for_status()
+    articles = []
+    <span class="kw">for</span> item <span class="kw">in</span> resp.json().get(<span class="str">"results"</span>, []):
+        <span class="kw">try</span>:
+            pub = datetime.fromisoformat(item[<span class="str">"pubDate"</span>].replace(<span class="str">"Z"</span>, <span class="str">"+00:00"</span>))
+        <span class="kw">except</span>:
+            pub = datetime.now(timezone.utc)
+        articles.append(<span class="tp">Article</span>(
+            title=item.get(<span class="str">"title"</span>, <span class="str">""</span>),
+            url=item.get(<span class="str">"link"</span>, <span class="str">""</span>),
+            source=item.get(<span class="str">"source_id"</span>, <span class="str">""</span>),
+            published=pub,
+            snippet=item.get(<span class="str">"description"</span>, <span class="str">""</span>) <span class="kw">or</span> <span class="str">""</span>,
+        ))
+    <span class="kw">return</span> articles
+
+<span class="kw">def</span> <span class="fn">ingest_all</span>() -> <span class="tp">List</span>[<span class="tp">Article</span>]:
+    <span class="str">"""Run all ingest sources and deduplicate by URL."""</span>
+    all_articles = []
+    <span class="kw">for</span> feed_url <span class="kw">in</span> FREE_RSS_FEEDS:
+        <span class="kw">try</span>:
+            all_articles.extend(<span class="fn">ingest_rss</span>(feed_url))
+        <span class="kw">except</span> Exception <span class="kw">as</span> e:
+            <span class="fn">print</span>(f<span class="str">"RSS failed for {feed_url}: {e}"</span>)
+    <span class="cm"># Deduplicate by URL</span>
+    seen = set()
+    deduped = []
+    <span class="kw">for</span> a <span class="kw">in</span> all_articles:
+        <span class="kw">if</span> a.url <span class="kw">not in</span> seen:
+            seen.add(a.url)
+            deduped.append(a)
+    <span class="kw">return</span> sorted(deduped, key=<span class="kw">lambda</span> x: x.published, reverse=<span class="kw">True</span>)</pre></div>
+    <div class="callout callout-amber"><strong>Paywall note</strong><p>NYT and WSJ will be blocked at the article level even if the RSS gives you the URL. For Clearground's MVP, prioritize AP, Reuters, Guardian (open), and the primary sources (Fed, White House, Congress) — those cover most factual stories without paywalls.</p></div>
+  </div>
+
+  <!-- STAGE 2: FULL TEXT FETCH -->
+  <div class="stage-panel" id="stage-1">
+    <div class="stage-header">
+      <div class="stage-icon">📄</div>
+      <div>
+        <div class="stage-title">Stage 2 — Full-text fetch</div>
+        <div class="stage-desc">Take the article URLs from Stage 1 and retrieve full article body text. This is the content Claude will read in Stage 4 to extract confirmed facts.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal"><strong>Strategy</strong><p>Use the <code>newspaper3k</code> library — it handles HTML parsing, boilerplate stripping, and extracts clean article text automatically. Falls back gracefully on failure.</p></div>
+    <div class="section-label">Install</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre>pip install newspaper3k lxml[html_clean]</pre></div>
+    <div class="section-label">fetch_fulltext.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">import</span> concurrent.futures
+<span class="kw">from</span> newspaper <span class="kw">import</span> Article <span class="kw">as</span> NewspaperArticle
+<span class="kw">from</span> newsapi_ingest <span class="kw">import</span> Article
+
+<span class="cm"># Sources that give full body via API — skip fetching for these</span>
+FULL_TEXT_SOURCES = {<span class="str">"theguardian.com"</span>, <span class="str">"federalreserve.gov"</span>, <span class="str">"whitehouse.gov"</span>}
+PAYWALL_DOMAINS = {<span class="str">"nytimes.com"</span>, <span class="str">"wsj.com"</span>, <span class="str">"ft.com"</span>, <span class="str">"bloomberg.com"</span>}
+
+<span class="kw">def</span> <span class="fn">is_paywalled</span>(url: str) -> bool:
+    <span class="kw">return</span> any(d <span class="kw">in</span> url <span class="kw">for</span> d <span class="kw">in</span> PAYWALL_DOMAINS)
+
+<span class="kw">def</span> <span class="fn">fetch_article_text</span>(article: <span class="tp">Article</span>) -> <span class="tp">Article</span>:
+    <span class="str">"""Fetch full text for a single article. Returns article with .full_text set."""</span>
+    <span class="kw">if</span> <span class="fn">is_paywalled</span>(article.url):
+        article.full_text = article.snippet  <span class="cm"># use snippet only for paywalled</span>
+        <span class="kw">return</span> article
+    <span class="kw">try</span>:
+        np_article = <span class="tp">NewspaperArticle</span>(article.url)
+        np_article.<span class="fn">download</span>()
+        np_article.<span class="fn">parse</span>()
+        text = np_article.text.strip()
+        <span class="cm"># Must be substantial — reject stubs and error pages</span>
+        article.full_text = text <span class="kw">if</span> <span class="fn">len</span>(text) > <span class="num">200</span> <span class="kw">else</span> article.snippet
+    <span class="kw">except</span> Exception <span class="kw">as</span> e:
+        <span class="fn">print</span>(f<span class="str">"Fetch failed for {article.url}: {e}"</span>)
+        article.full_text = article.snippet
+    <span class="kw">return</span> article
+
+<span class="kw">def</span> <span class="fn">fetch_all_fulltext</span>(articles: list, max_workers: int = <span class="num">8</span>) -> list:
+    <span class="str">"""Fetch full text for all articles in parallel."""</span>
+    <span class="kw">with</span> concurrent.futures.<span class="tp">ThreadPoolExecutor</span>(max_workers=max_workers) <span class="kw">as</span> pool:
+        results = <span class="fn">list</span>(pool.<span class="fn">map</span>(fetch_article_text, articles))
+    enriched = <span class="fn">sum</span>(<span class="num">1</span> <span class="kw">for</span> a <span class="kw">in</span> results <span class="kw">if</span> <span class="fn">len</span>(a.full_text) > <span class="fn">len</span>(a.snippet))
+    <span class="fn">print</span>(f<span class="str">"{enriched}/{len(results)} articles enriched with full text"</span>)
+    <span class="kw">return</span> results</pre></div>
+    <div class="callout callout-amber"><strong>Rate limiting</strong><p>Add <code>time.sleep(0.5)</code> between requests per domain to be a respectful crawler. Aggressive fetching can get your IP rate-limited by news sites.</p></div>
+  </div>
+
+  <!-- STAGE 3: CLUSTERING -->
+  <div class="stage-panel" id="stage-2">
+    <div class="stage-header">
+      <div class="stage-icon">🗂️</div>
+      <div>
+        <div class="stage-title">Stage 3 — Event clustering</div>
+        <div class="stage-desc">Group articles covering the same real-world event. This is what turns 15 articles about the Fed rate decision into a single Clearground story record.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal"><strong>Approach</strong><p>TF-IDF vectorization + cosine similarity. Simple, no GPU needed, runs fast. Named entity overlap (same location, organization, date) boosts the score. For production, upgrade to sentence-transformers for semantic clustering.</p></div>
+    <div class="section-label">Install</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre>pip install scikit-learn numpy</pre></div>
+    <div class="section-label">cluster.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> sklearn.feature_extraction.text <span class="kw">import</span> TfidfVectorizer
+<span class="kw">from</span> sklearn.metrics.pairwise <span class="kw">import</span> cosine_similarity
+<span class="kw">from</span> collections <span class="kw">import</span> defaultdict
+<span class="kw">import</span> uuid
+
+SIMILARITY_THRESHOLD = <span class="num">0.35</span>  <span class="cm"># tune this: lower = more aggressive grouping</span>
+
+<span class="kw">def</span> <span class="fn">cluster_articles</span>(articles: list) -> dict:
+    <span class="str">"""
+    Group articles into event clusters.
+    Returns: { cluster_id: [Article, ...] }
+    """</span>
+    <span class="kw">if not</span> articles:
+        <span class="kw">return</span> {}
+    <span class="cm"># Use title + first 300 chars of snippet for clustering signal</span>
+    texts = [f<span class="str">"{a.title} {a.snippet[:300]}"</span> <span class="kw">for</span> a <span class="kw">in</span> articles]
+    vectorizer = <span class="tp">TfidfVectorizer</span>(
+        stop_words=<span class="str">'english'</span>,
+        ngram_range=(<span class="num">1</span>, <span class="num">2</span>),
+        max_features=<span class="num">5000</span>,
+        min_df=<span class="num">1</span>,
+    )
+    tfidf_matrix = vectorizer.<span class="fn">fit_transform</span>(texts)
+    sim_matrix = <span class="fn">cosine_similarity</span>(tfidf_matrix)
+
+    <span class="cm"># Union-find to group articles above threshold</span>
+    parent = <span class="fn">list</span>(<span class="fn">range</span>(<span class="fn">len</span>(articles)))
+
+    <span class="kw">def</span> <span class="fn">find</span>(x):
+        <span class="kw">while</span> parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        <span class="kw">return</span> x
+
+    <span class="kw">def</span> <span class="fn">union</span>(x, y):
+        parent[<span class="fn">find</span>(x)] = <span class="fn">find</span>(y)
+
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(articles)):
+        <span class="kw">for</span> j <span class="kw">in</span> <span class="fn">range</span>(i + <span class="num">1</span>, <span class="fn">len</span>(articles)):
+            <span class="kw">if</span> sim_matrix[i, j] >= SIMILARITY_THRESHOLD:
+                <span class="fn">union</span>(i, j)
+
+    <span class="cm"># Group by root</span>
+    groups = defaultdict(list)
+    <span class="kw">for</span> i, article <span class="kw">in</span> <span class="fn">enumerate</span>(articles):
+        root = <span class="fn">find</span>(i)
+        groups[root].append(article)
+
+    <span class="cm"># Assign stable cluster IDs and update articles</span>
+    clusters = {}
+    <span class="kw">for</span> root, group <span class="kw">in</span> groups.items():
+        cluster_id = str(uuid.<span class="fn">uuid4</span>())[:8]
+        <span class="kw">for</span> a <span class="kw">in</span> group:
+            a.cluster_id = cluster_id
+        clusters[cluster_id] = <span class="fn">sorted</span>(group, key=<span class="kw">lambda</span> x: x.published)
+
+    <span class="fn">print</span>(f<span class="str">"{len(articles)} articles → {len(clusters)} clusters"</span>)
+    <span class="kw">return</span> clusters</pre></div>
+    <div class="callout callout-amber"><strong>Upgrade path</strong><p>For production, replace TF-IDF with <code>sentence-transformers</code> (<code>all-MiniLM-L6-v2</code>) for semantic matching. This handles paraphrased headlines about the same event that TF-IDF misses.</p></div>
+  </div>
+
+  <!-- STAGE 4: FACT EXTRACTION -->
+  <div class="stage-panel" id="stage-3">
+    <div class="stage-header">
+      <div class="stage-icon">🔬</div>
+      <div>
+        <div class="stage-title">Stage 4 — Fact extraction</div>
+        <div class="stage-desc">Send the full text of all articles in a cluster to Claude. Claude reads across sources, extracts only confirmed factual claims with attribution, and flags contradictions.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal"><strong>This is the core Clearground differentiator</strong><p>Claude reads all articles covering one event, compares claims across sources, and outputs only verified facts in a structured JSON format — no opinions, no framing.</p></div>
+    <div class="section-label">Install</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">bash</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre>pip install anthropic</pre></div>
+    <div class="section-label">extract_facts.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">import</span> anthropic
+<span class="kw">import</span> json
+
+client = anthropic.<span class="tp">Anthropic</span>()  <span class="cm"># reads ANTHROPIC_API_KEY from env</span>
+
+FACT_EXTRACTION_PROMPT = <span class="str">"""You are a fact extraction system for Clearground News.
+
+Your job: read multiple news articles about the same event and extract ONLY confirmed factual claims.
+
+Rules:
+- Facts only. No opinion, analysis, framing, or speculation.
+- Every fact must cite which source confirmed it.
+- If sources conflict on a fact, flag it as CONFLICTED with both versions.
+- If something is not yet known, list it explicitly under unknowns.
+- Numbers are sacred — include every specific quantifiable fact with its exact value.
+
+Return ONLY valid JSON in this exact format:
+{
+  "confirmed_facts": [
+    {
+      "fact": "string — the factual claim in plain language",
+      "source": "string — publication or official body name",
+      "confidence": "high|medium|low",
+      "timestamp": "string or null — when this fact was confirmed"
+    }
+  ],
+  "conflicted_facts": [
+    {
+      "topic": "string",
+      "versions": [{"claim": "...", "source": "..."}, ...]
+    }
+  ],
+  "unknowns": ["string — things not yet confirmed"],
+  "confidence_score": 1-5
+}"""</span>
+
+<span class="kw">def</span> <span class="fn">extract_facts_for_cluster</span>(cluster_articles: list) -> dict:
+    <span class="str">"""Run Claude fact extraction on a cluster of articles."""</span>
+    <span class="cm"># Build article context block</span>
+    articles_text = <span class="str">"\n\n---\n\n"</span>.<span class="fn">join</span>(
+        f<span class="str">"SOURCE: {a.source}\nTITLE: {a.title}\n\n{a.full_text[:3000]}"</span>
+        <span class="kw">for</span> a <span class="kw">in</span> cluster_articles
+    )
+    user_message = f<span class="str">"""Extract facts from these {len(cluster_articles)} articles about the same event:
+
+{articles_text}"""</span>
+
+    response = client.messages.<span class="fn">create</span>(
+        model=<span class="str">"claude-opus-4-5"</span>,
+        max_tokens=<span class="num">2000</span>,
+        system=FACT_EXTRACTION_PROMPT,
+        messages=[{<span class="str">"role"</span>: <span class="str">"user"</span>, <span class="str">"content"</span>: user_message}],
+    )
+    <span class="kw">try</span>:
+        raw = response.content[<span class="num">0</span>].text.strip()
+        <span class="cm"># Strip markdown fences if Claude wrapped the JSON</span>
+        <span class="kw">if</span> raw.<span class="fn">startswith</span>(<span class="str">"```"</span>):
+            raw = raw.<span class="fn">split</span>(<span class="str">"\n"</span>, <span class="num">1</span>)[<span class="num">1</span>].<span class="fn">rsplit</span>(<span class="str">"```"</span>, <span class="num">1</span>)[<span class="num">0</span>]
+        <span class="kw">return</span> json.<span class="fn">loads</span>(raw)
+    <span class="kw">except</span> json.JSONDecodeError <span class="kw">as</span> e:
+        <span class="fn">print</span>(f<span class="str">"JSON parse error: {e}\nRaw: {raw[:200]}"</span>)
+        <span class="kw">return</span> {<span class="str">"confirmed_facts"</span>: [], <span class="str">"unknowns"</span>: [], <span class="str">"confidence_score"</span>: <span class="num">1</span>}</pre></div>
+  </div>
+
+  <!-- STAGE 5: TITLE ENGINE -->
+  <div class="stage-panel" id="stage-4">
+    <div class="stage-header">
+      <div class="stage-icon">✏️</div>
+      <div>
+        <div class="stage-title">Stage 5 — Title engine</div>
+        <div class="stage-desc">Generate a Clearground title from the confirmed facts. The title must follow the 5-rule formula: Who/Where + Action + Specific Number + Status. No outlet headlines are consulted.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal"><strong>The formula</strong><p>Rule 1: Numbers over adjectives. Rule 2: Actions not narratives. Rule 3: Unknown = stated. Rule 4: Highest-confidence fact leads. Rule 5: Implications flagged separately.</p></div>
+    <div class="section-label">title_engine.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">import</span> anthropic
+<span class="kw">import</span> json
+
+client = anthropic.<span class="tp">Anthropic</span>()
+
+TITLE_SYSTEM_PROMPT = <span class="str">"""You are the Clearground title engine.
+
+Your job: generate a factual headline from confirmed facts using the Clearground formula.
+
+Formula: [Who/Where] + [neutral past-tense verb] + [specific number] + [status/signal]
+
+5 rules:
+1. Numbers over adjectives: "5,100 acres" not "devastating fire"
+2. Actions not narratives: "Fed held rate" not "Fed refuses to cut"  
+3. Unknown = stated: "cause under investigation" is a valid title element
+4. Highest-confidence fact leads: anchor on the most verified specific fact
+5. Implications go in the body, not the title
+
+Return ONLY valid JSON:
+{
+  "title": "the generated title string",
+  "formula_breakdown": {
+    "who_where": "...",
+    "action": "...",
+    "number": "...",
+    "status": "..."
+  },
+  "confidence_used": "which confirmed fact anchors the title"
+}"""</span>
+
+<span class="kw">def</span> <span class="fn">generate_title</span>(facts_data: dict) -> dict:
+    <span class="str">"""Generate a Clearground title from extracted facts."""</span>
+    facts_summary = json.<span class="fn">dumps</span>({
+        <span class="str">"confirmed_facts"</span>: facts_data.get(<span class="str">"confirmed_facts"</span>, []),
+        <span class="str">"unknowns"</span>: facts_data.get(<span class="str">"unknowns"</span>, []),
+    }, indent=<span class="num">2</span>)
+
+    response = client.messages.<span class="fn">create</span>(
+        model=<span class="str">"claude-opus-4-5"</span>,
+        max_tokens=<span class="num">500</span>,
+        system=TITLE_SYSTEM_PROMPT,
+        messages=[{
+            <span class="str">"role"</span>: <span class="str">"user"</span>,
+            <span class="str">"content"</span>: f<span class="str">"Generate a Clearground title from these facts:\n\n{facts_summary}"</span>
+        }],
+    )
+    <span class="kw">try</span>:
+        raw = response.content[<span class="num">0</span>].text.strip()
+        <span class="kw">if</span> raw.<span class="fn">startswith</span>(<span class="str">"```"</span>):
+            raw = raw.<span class="fn">split</span>(<span class="str">"\n"</span>, <span class="num">1</span>)[<span class="num">1</span>].<span class="fn">rsplit</span>(<span class="str">"```"</span>, <span class="num">1</span>)[<span class="num">0</span>]
+        <span class="kw">return</span> json.<span class="fn">loads</span>(raw)
+    <span class="kw">except</span>:
+        <span class="kw">return</span> {<span class="str">"title"</span>: <span class="str">"Title generation failed"</span>, <span class="str">"formula_breakdown"</span>: {}}</pre></div>
+  </div>
+
+  <!-- STAGE 6: SPIN DETECTION -->
+  <div class="stage-panel" id="stage-5">
+    <div class="stage-header">
+      <div class="stage-icon">🚩</div>
+      <div>
+        <div class="stage-title">Stage 6 — Spin detection</div>
+        <div class="stage-desc">Compare each outlet's original headline against the confirmed facts. Claude classifies any framing, loaded language, or omissions and returns a structured spin callout.</div>
+      </div>
+    </div>
+    <div class="callout callout-teal"><strong>Classification types</strong><p>Loaded: emotional language not in facts. Framing: neutral facts wrapped in narrative. Vague: headline withholds specific facts available at time of publication. OK: broadly factual and specific.</p></div>
+    <div class="section-label">spin_detect.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">import</span> anthropic
+<span class="kw">import</span> json
+
+client = anthropic.<span class="tp">Anthropic</span>()
+
+SPIN_SYSTEM_PROMPT = <span class="str">"""You are the Clearground spin detection system.
+
+Your job: compare an outlet's headline against confirmed facts and classify spin.
+
+Spin classifications:
+- Loaded: language chosen to provoke emotional response (e.g. "raging inferno", "refuses to cut")
+- Framing: neutral facts wrapped in narrative (e.g. "under pressure", "bowing to demands")
+- Vague: headline withholds specific facts that were available at time of publication
+- OK: headline is broadly factual and specific, no spin detected
+
+Return ONLY valid JSON:
+{
+  "classification": "Loaded|Framing|Vague|OK",
+  "spin_present": true|false,
+  "description": "one sentence explaining what the spin is (or 'No spin detected')",
+  "specific_language": "the exact phrase in the headline that carries the spin, or null"
+}"""</span>
+
+<span class="kw">def</span> <span class="fn">detect_spin</span>(outlet_headline: str, outlet_name: str, confirmed_facts: list) -> dict:
+    <span class="str">"""Classify spin in a single outlet headline vs the confirmed facts."""</span>
+    facts_text = <span class="str">"\n"</span>.<span class="fn">join</span>(f<span class="str">"- {f['fact']} (source: {f['source']})"</span> <span class="kw">for</span> f <span class="kw">in</span> confirmed_facts)
+    user_msg = f<span class="str">"""Outlet: {outlet_name}
+Headline: "{outlet_headline}"
+
+Confirmed facts about this event:
+{facts_text}
+
+Classify the spin in this headline."""</span>
+
+    response = client.messages.<span class="fn">create</span>(
+        model=<span class="str">"claude-opus-4-5"</span>,
+        max_tokens=<span class="num">300</span>,
+        system=SPIN_SYSTEM_PROMPT,
+        messages=[{<span class="str">"role"</span>: <span class="str">"user"</span>, <span class="str">"content"</span>: user_msg}],
+    )
+    <span class="kw">try</span>:
+        raw = response.content[<span class="num">0</span>].text.strip()
+        <span class="kw">if</span> raw.<span class="fn">startswith</span>(<span class="str">"```"</span>):
+            raw = raw.<span class="fn">split</span>(<span class="str">"\n"</span>, <span class="num">1</span>)[<span class="num">1</span>].<span class="fn">rsplit</span>(<span class="str">"```"</span>, <span class="num">1</span>)[<span class="num">0</span>]
+        result = json.<span class="fn">loads</span>(raw)
+        result[<span class="str">"outlet"</span>] = outlet_name
+        result[<span class="str">"original_headline"</span>] = outlet_headline
+        <span class="kw">return</span> result
+    <span class="kw">except</span>:
+        <span class="kw">return</span> {<span class="str">"classification"</span>: <span class="str">"OK"</span>, <span class="str">"spin_present"</span>: <span class="kw">False</span>, <span class="str">"description"</span>: <span class="str">"Parse error"</span>}
+
+<span class="kw">def</span> <span class="fn">detect_spin_for_cluster</span>(cluster_articles: list, confirmed_facts: list) -> list:
+    <span class="str">"""Run spin detection on all article headlines in a cluster."""</span>
+    results = []
+    <span class="kw">for</span> article <span class="kw">in</span> cluster_articles:
+        result = <span class="fn">detect_spin</span>(article.title, article.source, confirmed_facts)
+        <span class="kw">if</span> result[<span class="str">"spin_present"</span>]:
+            results.<span class="fn">append</span>(result)
+    <span class="kw">return</span> results</pre></div>
+
+    <div class="section-label">Putting it all together — pipeline.py</div>
+    <div class="code-block"><div class="code-header"><span class="code-label">python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div><pre><span class="kw">from</span> newsapi_ingest <span class="kw">import</span> ingest_all
+<span class="kw">from</span> fetch_fulltext <span class="kw">import</span> fetch_all_fulltext
+<span class="kw">from</span> cluster <span class="kw">import</span> cluster_articles
+<span class="kw">from</span> extract_facts <span class="kw">import</span> extract_facts_for_cluster
+<span class="kw">from</span> title_engine <span class="kw">import</span> generate_title
+<span class="kw">from</span> spin_detect <span class="kw">import</span> detect_spin_for_cluster
+<span class="kw">import</span> json
+
+<span class="kw">def</span> <span class="fn">run_pipeline</span>() -> list:
+    <span class="str">"""Full Clearground pipeline. Returns list of story records."""</span>
+    <span class="cm"># Stage 1: Ingest</span>
+    <span class="fn">print</span>(<span class="str">"[1/6] Ingesting articles..."</span>)
+    articles = <span class="fn">ingest_all</span>()
+    <span class="fn">print</span>(f<span class="str">"  → {len(articles)} articles ingested"</span>)
+
+    <span class="cm"># Stage 2: Full-text fetch</span>
+    <span class="fn">print</span>(<span class="str">"[2/6] Fetching full text..."</span>)
+    articles = <span class="fn">fetch_all_fulltext</span>(articles)
+
+    <span class="cm"># Stage 3: Cluster by event</span>
+    <span class="fn">print</span>(<span class="str">"[3/6] Clustering by event..."</span>)
+    clusters = <span class="fn">cluster_articles</span>(articles)
+
+    stories = []
+    <span class="kw">for</span> cluster_id, cluster_articles_list <span class="kw">in</span> clusters.items():
+        <span class="cm"># Skip solo articles with only a snippet (not enough signal)</span>
+        <span class="kw">if</span> <span class="fn">len</span>(cluster_articles_list) == <span class="num">1</span> <span class="kw">and not</span> cluster_articles_list[<span class="num">0</span>].full_text:
+            <span class="kw">continue</span>
+
+        <span class="fn">print</span>(f<span class="str">"[4/6] Extracting facts: cluster {cluster_id} ({len(cluster_articles_list)} articles)"</span>)
+        facts_data = <span class="fn">extract_facts_for_cluster</span>(cluster_articles_list)
+
+        <span class="fn">print</span>(f<span class="str">"[5/6] Generating title: cluster {cluster_id}"</span>)
+        title_data = <span class="fn">generate_title</span>(facts_data)
+
+        <span class="fn">print</span>(f<span class="str">"[6/6] Detecting spin: cluster {cluster_id}"</span>)
+        spin_flags = <span class="fn">detect_spin_for_cluster</span>(
+            cluster_articles_list,
+            facts_data.get(<span class="str">"confirmed_facts"</span>, [])
+        )
+
+        <span class="cm"># Assemble the Clearground story record</span>
+        story = {
+            <span class="str">"cluster_id"</span>: cluster_id,
+            <span class="str">"title"</span>: title_data.get(<span class="str">"title"</span>),
+            <span class="str">"formula_breakdown"</span>: title_data.get(<span class="str">"formula_breakdown"</span>),
+            <span class="str">"confidence_score"</span>: facts_data.get(<span class="str">"confidence_score"</span>, <span class="num">1</span>),
+            <span class="str">"confirmed_facts"</span>: facts_data.get(<span class="str">"confirmed_facts"</span>, []),
+            <span class="str">"conflicted_facts"</span>: facts_data.get(<span class="str">"conflicted_facts"</span>, []),
+            <span class="str">"unknowns"</span>: facts_data.get(<span class="str">"unknowns"</span>, []),
+            <span class="str">"spin_flags"</span>: spin_flags,
+            <span class="str">"source_articles"</span>: [a.url <span class="kw">for</span> a <span class="kw">in</span> cluster_articles_list],
+            <span class="str">"last_updated"</span>: <span class="fn">max</span>(a.published <span class="kw">for</span> a <span class="kw">in</span> cluster_articles_list).isoformat(),
+        }
+        stories.<span class="fn">append</span>(story)
+
+    <span class="cm"># Save for the frontend</span>
+    <span class="kw">with</span> <span class="fn">open</span>(<span class="str">"stories.json"</span>, <span class="str">"w"</span>) <span class="kw">as</span> f:
+        json.<span class="fn">dump</span>(stories, f, indent=<span class="num">2</span>)
+    <span class="fn">print</span>(f<span class="str">"\nDone. {len(stories)} stories written to stories.json"</span>)
+    <span class="kw">return</span> stories
+
+<span class="kw">if</span> __name__ == <span class="str">"__main__"</span>:
+    <span class="fn">run_pipeline</span>()</pre></div>
+    <div class="callout callout-teal"><strong>Output</strong><p>Running <code>python pipeline.py</code> writes a <code>stories.json</code> file that your existing homepage HTML can load directly — each record maps cleanly to the story card format you've already built.</p></div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="logo"><span class="cl">Clear</span><span class="gr">ground</span></div>
+  <p>Pipeline Reference — Version 1.0 · March 2026</p>
+</footer>
+
+<script>
+function switchStage(idx) {
+  document.querySelectorAll('.stage-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
+  document.querySelectorAll('.stage-btn').forEach((b,i) => b.classList.toggle('active', i===idx));
+  document.querySelectorAll('.flow-step').forEach((s,i) => s.classList.toggle('active-step', i===idx));
+}
+
+function copyCode(btn) {
+  var pre = btn.closest('.code-block').querySelector('pre');
+  var text = pre.innerText || pre.textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied';
+    setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+  });
+}
+// Init flow highlight
+document.getElementById('flow-0').classList.add('active-step');
+</script>
+</body>
+</html>

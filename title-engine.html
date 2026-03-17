@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clearground — Title Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --teal: #1D9E75;
+      --teal-light: #E1F5EE;
+      --teal-dark: #085041;
+      --amber: #EF9F27;
+      --amber-light: #FAEEDA;
+      --amber-dark: #633806;
+      --gray-50: #F1EFE8;
+      --gray-200: #B4B2A9;
+      --gray-400: #888780;
+      --gray-600: #5F5E5A;
+      --gray-800: #444441;
+      --blue-light: #E6F1FB;
+      --blue-dark: #0C447C;
+      --bg: #F7F6F3;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --border-strong: rgba(0,0,0,0.18);
+      --text-primary: #1a1a18;
+      --text-secondary: #5F5E5A;
+      --text-tertiary: #888780;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --surface: #232320;
+        --border: rgba(255,255,255,0.1);
+        --border-strong: rgba(255,255,255,0.18);
+        --text-primary: #F1EFE8;
+        --text-secondary: #B4B2A9;
+        --text-tertiary: #888780;
+        --teal-light: #04342C;
+        --teal-dark: #9FE1CB;
+        --amber-light: #412402;
+        --amber-dark: #FAC775;
+        --blue-light: #042C53;
+        --blue-dark: #B5D4F4;
+        --gray-50: #2C2C2A;
+      }
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo { font-family: 'DM Serif Display', serif; font-size: 22px; letter-spacing: -0.02em; }
+    .logo .cl { color: var(--text-primary); }
+    .logo .gr { color: var(--teal); }
+    .tagline { font-size: 11px; color: var(--text-tertiary); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { font-size: 13px; color: var(--text-secondary); text-decoration: none; }
+    .nav-links a:hover { color: var(--teal); }
+    .nav-badge { font-size: 11px; background: var(--teal-light); color: var(--teal-dark); padding: 3px 10px; border-radius: 99px; font-weight: 500; }
+
+    main { max-width: 820px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-family: 'DM Serif Display', serif; font-size: 28px; margin-bottom: 6px; }
+    .page-header p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; max-width: 540px; }
+
+    /* API KEY SETUP */
+    .api-setup {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .api-setup-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .api-row { display: flex; gap: 8px; }
+    .api-input {
+      flex: 1;
+      background: var(--bg);
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 9px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-primary);
+      outline: none;
+    }
+    .api-input:focus { border-color: var(--teal); }
+    .api-save-btn {
+      padding: 9px 18px;
+      background: var(--teal);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .api-save-btn:hover { opacity: 0.9; }
+    .api-status { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
+    .api-status.ready { color: var(--teal); }
+    .api-note { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.5; }
+
+    /* INPUT SECTION */
+    .input-section {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .input-header {
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .input-header-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .headline-count { font-size: 12px; color: var(--text-tertiary); }
+
+    .headlines-list { padding: 0.75rem 1.25rem; display: flex; flex-direction: column; gap: 8px; }
+
+    .headline-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .outlet-tag {
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--gray-50);
+      color: var(--text-secondary);
+      border-radius: 4px;
+      padding: 3px 8px;
+      white-space: nowrap;
+      min-width: 72px;
+      text-align: center;
+    }
+    .headline-input {
+      flex: 1;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .headline-input:focus { border-color: var(--teal); }
+    .headline-input::placeholder { color: var(--text-tertiary); }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-tertiary);
+      font-size: 16px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+    .remove-btn:hover { color: var(--text-primary); background: var(--gray-50); }
+
+    .input-footer {
+      padding: 0.75rem 1.25rem;
+      border-top: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .add-btn {
+      font-size: 12px;
+      color: var(--teal);
+      background: none;
+      border: 0.5px dashed var(--teal);
+      border-radius: var(--radius-md);
+      padding: 6px 14px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+    }
+    .add-btn:hover { background: var(--teal-light); }
+
+    .generate-btn {
+      padding: 9px 24px;
+      background: var(--teal);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.15s;
+    }
+    .generate-btn:hover { opacity: 0.9; }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .generate-btn.loading .spinner { display: block; }
+    .generate-btn.loading .btn-text { opacity: 0.7; }
+
+    /* RESULTS */
+    .result-section {
+      display: none;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .result-section.visible { display: block; }
+
+    .result-header {
+      padding: 0.875rem 1.25rem;
+      border-bottom: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .result-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+    .result-confidence {
+      margin-left: auto;
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+    .pip { width: 10px; height: 4px; border-radius: 2px; background: var(--border-strong); }
+    .pip.filled { background: var(--teal); }
+
+    .clearground-title {
+      padding: 1.25rem 1.25rem 0.75rem;
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .formula-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 0 1.25rem 1rem;
+    }
+    .chip {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.03em;
+    }
+    .chip-who   { background: var(--teal-light);  color: var(--teal-dark); }
+    .chip-what  { background: var(--blue-light);  color: var(--blue-dark); }
+    .chip-number{ background: var(--amber-light); color: var(--amber-dark); }
+    .chip-status{ background: var(--gray-50);     color: var(--gray-800); }
+
+    /* SPIN TABLE */
+    .spin-section { border-top: 0.5px solid var(--border); padding: 1.25rem; }
+    .spin-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      font-weight: 500;
+      margin-bottom: 0.875rem;
+    }
+    .spin-table { display: flex; flex-direction: column; gap: 8px; }
+    .spin-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 0.5px solid var(--border);
+    }
+    .spin-row.ok { background: var(--teal-light); border-color: transparent; }
+    .spin-row.flagged { background: var(--amber-light); border-color: transparent; }
+    .spin-outlet { font-size: 12px; font-weight: 600; min-width: 80px; color: var(--text-primary); }
+    .spin-badge {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .badge-ok { background: var(--teal); color: white; }
+    .badge-loaded { background: var(--amber); color: white; }
+    .badge-framing { background: #E07B4A; color: white; }
+    .badge-vague { background: var(--gray-400); color: white; }
+    .spin-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; flex: 1; }
+
+    /* REASONING */
+    .reasoning-section { border-top: 0.5px solid var(--border); padding: 1.25rem; }
+    .reasoning-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-family: 'DM Sans', sans-serif;
+      padding: 0;
+    }
+    .reasoning-body {
+      display: none;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border);
+    }
+    .reasoning-body.open { display: block; }
+
+    /* EXAMPLES */
+    .examples-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 1.5rem;
+    }
+    .example-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .example-card:hover { border-color: var(--teal); }
+    .example-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--teal); font-weight: 500; margin-bottom: 6px; }
+    .example-headlines { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .example-headlines li { list-style: none; padding-left: 10px; position: relative; }
+    .example-headlines li::before { content: '—'; position: absolute; left: 0; color: var(--text-tertiary); }
+
+    .error-msg {
+      padding: 12px 16px;
+      background: #FEE2E2;
+      border-radius: var(--radius-md);
+      border-left: 2px solid #EF4444;
+      font-size: 13px;
+      color: #7F1D1D;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    footer {
+      max-width: 820px;
+      margin: 2rem auto 0;
+      padding: 1.5rem 2rem;
+      border-top: 0.5px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    footer p { font-size: 12px; color: var(--text-tertiary); }
+
+    @media (max-width: 600px) {
+      nav { padding: 0.75rem 1rem; }
+      main, footer { padding-left: 1rem; padding-right: 1rem; }
+      .examples-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div>
+    <div class="logo"><span class="cl">Clear</span><span class="gr">ground</span></div>
+    <div class="tagline">Facts, staged — no spin</div>
+  </div>
+  <div class="nav-links">
+    <a href="index.html">Today</a>
+    <span class="nav-badge">Title Engine</span>
+    <a href="pipeline.html">Pipeline</a>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Live Title Engine</h1>
+    <p>Paste headlines from different outlets covering the same story. The AI reads across sources, extracts confirmed facts, and generates a Clearground title — no editorial framing, no spin.</p>
+  </div>
+
+  <!-- API KEY SETUP -->
+  <div class="api-setup">
+    <div class="api-setup-label">Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." />
+      <button class="api-save-btn" onclick="saveApiKey()">Save Key</button>
+    </div>
+    <div class="api-status" id="apiStatus">No key set — enter your Anthropic API key above to enable live generation.</div>
+    <div class="api-note">Your key is stored only in your browser's session memory and never sent anywhere except directly to api.anthropic.com.</div>
+  </div>
+
+  <!-- HEADLINE INPUT -->
+  <div class="input-section">
+    <div class="input-header">
+      <span class="input-header-label">Outlet headlines</span>
+      <span class="headline-count" id="headlineCount">3 headlines</span>
+    </div>
+    <div class="headlines-list" id="headlinesList">
+      <div class="headline-row" data-index="0">
+        <span class="outlet-tag">AP</span>
+        <input type="text" class="headline-input" placeholder="Paste an AP headline…" oninput="updateCount()" />
+        <button class="remove-btn" onclick="removeRow(this)" title="Remove">×</button>
+      </div>
+      <div class="headline-row" data-index="1">
+        <span class="outlet-tag">Reuters</span>
+        <input type="text" class="headline-input" placeholder="Paste a Reuters headline…" oninput="updateCount()" />
+        <button class="remove-btn" onclick="removeRow(this)" title="Remove">×</button>
+      </div>
+      <div class="headline-row" data-index="2">
+        <span class="outlet-tag">Source 3</span>
+        <input type="text" class="headline-input" placeholder="Paste another headline…" oninput="updateCount()" />
+        <button class="remove-btn" onclick="removeRow(this)" title="Remove">×</button>
+      </div>
+    </div>
+    <div class="input-footer">
+      <button class="add-btn" onclick="addRow()">+ Add headline</button>
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        <div class="spinner"></div>
+        <span class="btn-text">Generate Clearground title</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- RESULT -->
+  <div class="result-section" id="resultSection">
+    <div class="result-header">
+      <span class="result-label">Clearground title</span>
+      <div class="result-confidence" id="confidencePips"></div>
+    </div>
+    <div class="clearground-title" id="resultTitle"></div>
+    <div class="formula-row" id="formulaChips"></div>
+    <div class="spin-section">
+      <div class="spin-section-label">Outlet spin analysis</div>
+      <div class="spin-table" id="spinTable"></div>
+    </div>
+    <div class="reasoning-section">
+      <button class="reasoning-toggle" onclick="toggleReasoning(this)">
+        ▾ View AI reasoning
+      </button>
+      <div class="reasoning-body" id="reasoningBody"></div>
+    </div>
+  </div>
+
+  <!-- EXAMPLE SETS -->
+  <div style="margin-top:2rem;">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-tertiary);font-weight:500;margin-bottom:0.75rem;">Try an example</div>
+    <div class="examples-grid">
+
+      <div class="example-card" onclick="loadExample('fed')">
+        <div class="example-label">Economy · Fed rate decision</div>
+        <ul class="example-headlines">
+          <li>Fed refuses to cut rates despite mounting pressure</li>
+          <li>Federal Reserve holds rates steady for third meeting</li>
+          <li>Powell signals no urgency on rate cuts as inflation persists</li>
+        </ul>
+      </div>
+
+      <div class="example-card" onclick="loadExample('wildfire')">
+        <div class="example-label">Environment · Wildfire</div>
+        <ul class="example-headlines">
+          <li>Raging inferno forces thousands to flee California</li>
+          <li>Riverside County wildfire expands to 5,100 acres</li>
+          <li>Cal Fire battles blaze in Cabazon, cause unknown</li>
+        </ul>
+      </div>
+
+      <div class="example-card" onclick="loadExample('senate')">
+        <div class="example-label">Politics · Senate vote</div>
+        <ul class="example-headlines">
+          <li>Democrats' bloated spending package clears Senate</li>
+          <li>Senate passes $1.2T government funding bill 72-28</li>
+          <li>Bipartisan deal averts shutdown as Senate approves spending bill</li>
+        </ul>
+      </div>
+
+      <div class="example-card" onclick="loadExample('jobs')">
+        <div class="example-label">Economy · Jobs report</div>
+        <ul class="example-headlines">
+          <li>US economy adds disappointing 150,000 jobs in March</li>
+          <li>Hiring slows as employers add 150K workers last month</li>
+          <li>March jobs report: unemployment holds at 3.8%</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div>
+    <div class="logo" style="font-family:'DM Serif Display',serif;font-size:16px;"><span class="cl">Clear</span><span class="gr">ground</span></div>
+    <p style="margin-top:4px;font-size:12px;color:var(--text-tertiary);">Facts, staged — no spin</p>
+  </div>
+  <p>Title Engine v1.0 — March 2026</p>
+</footer>
+
+<script>
+  var apiKey = sessionStorage.getItem('cg_api_key') || '';
+  var outletNames = ['AP', 'Reuters', 'BBC', 'NYT', 'WSJ', 'Guardian', 'NPR', 'Politico', 'Fox', 'CNN'];
+  var rowCounter = 3;
+
+  // Init
+  if (apiKey) {
+    document.getElementById('apiKeyInput').value = apiKey;
+    document.getElementById('apiStatus').textContent = '✓ API key loaded from session.';
+    document.getElementById('apiStatus').className = 'api-status ready';
+  }
+
+  function saveApiKey() {
+    var val = document.getElementById('apiKeyInput').value.trim();
+    if (!val.startsWith('sk-ant-')) {
+      document.getElementById('apiStatus').textContent = 'Key should start with sk-ant-';
+      document.getElementById('apiStatus').className = 'api-status';
+      return;
+    }
+    apiKey = val;
+    sessionStorage.setItem('cg_api_key', val);
+    document.getElementById('apiStatus').textContent = '✓ Key saved for this session.';
+    document.getElementById('apiStatus').className = 'api-status ready';
+  }
+
+  function updateCount() {
+    var rows = document.querySelectorAll('.headline-row');
+    document.getElementById('headlineCount').textContent = rows.length + ' headline' + (rows.length !== 1 ? 's' : '');
+  }
+
+  function addRow() {
+    var list = document.getElementById('headlinesList');
+    var idx = rowCounter++;
+    var outlet = outletNames[idx % outletNames.length];
+    var row = document.createElement('div');
+    row.className = 'headline-row';
+    row.setAttribute('data-index', idx);
+    row.innerHTML = '<span class="outlet-tag" contenteditable="true" style="outline:none;">' + outlet + '</span>' +
+      '<input type="text" class="headline-input" placeholder="Paste a headline…" oninput="updateCount()" />' +
+      '<button class="remove-btn" onclick="removeRow(this)" title="Remove">×</button>';
+    list.appendChild(row);
+    row.querySelector('.headline-input').focus();
+    updateCount();
+  }
+
+  function removeRow(btn) {
+    var rows = document.querySelectorAll('.headline-row');
+    if (rows.length <= 1) return;
+    btn.closest('.headline-row').remove();
+    updateCount();
+  }
+
+  function loadExample(key) {
+    var examples = {
+      fed: [
+        { outlet: 'WSJ', text: 'Fed refuses to cut rates despite mounting pressure' },
+        { outlet: 'AP', text: 'Federal Reserve holds rates steady for third consecutive meeting' },
+        { outlet: 'NYT', text: 'Powell signals no urgency on rate cuts as inflation persists' },
+      ],
+      wildfire: [
+        { outlet: 'Fox', text: 'Raging inferno forces thousands to flee California' },
+        { outlet: 'AP', text: 'Riverside County wildfire expands to 5,100 acres, 0% contained' },
+        { outlet: 'Cal Fire', text: 'Cal Fire battles blaze in Cabazon area, cause under investigation' },
+      ],
+      senate: [
+        { outlet: 'Fox', text: "Democrats' bloated spending package clears Senate" },
+        { outlet: 'AP', text: 'Senate passes $1.2T government funding bill 72-28' },
+        { outlet: 'NPR', text: 'Bipartisan deal averts shutdown as Senate approves spending bill' },
+      ],
+      jobs: [
+        { outlet: 'CNN', text: 'US economy adds disappointing 150,000 jobs in March' },
+        { outlet: 'Reuters', text: 'Hiring slows as US employers add 150K workers last month' },
+        { outlet: 'BLS', text: 'March jobs report: nonfarm payrolls +150K, unemployment rate 3.8%' },
+      ],
+    };
+
+    var data = examples[key];
+    if (!data) return;
+
+    var list = document.getElementById('headlinesList');
+    list.innerHTML = '';
+    rowCounter = data.length;
+
+    data.forEach(function(item, i) {
+      var row = document.createElement('div');
+      row.className = 'headline-row';
+      row.setAttribute('data-index', i);
+      row.innerHTML = '<span class="outlet-tag" contenteditable="true" style="outline:none;">' + item.outlet + '</span>' +
+        '<input type="text" class="headline-input" value="' + item.text.replace(/"/g, '&quot;') + '" oninput="updateCount()" />' +
+        '<button class="remove-btn" onclick="removeRow(this)" title="Remove">×</button>';
+      list.appendChild(row);
+    });
+
+    updateCount();
+    document.getElementById('resultSection').classList.remove('visible');
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+
+  async function generate() {
+    if (!apiKey) {
+      showError('Please enter your Anthropic API key above first.');
+      return;
+    }
+
+    var rows = document.querySelectorAll('.headline-row');
+    var headlines = [];
+    rows.forEach(function(row) {
+      var outletEl = row.querySelector('.outlet-tag');
+      var inputEl = row.querySelector('.headline-input');
+      var outlet = (outletEl.textContent || outletEl.innerText || '').trim();
+      var text = inputEl.value.trim();
+      if (text) headlines.push({ outlet: outlet, headline: text });
+    });
+
+    if (headlines.length === 0) {
+      showError('Please enter at least one headline.');
+      return;
+    }
+
+    setLoading(true);
+    document.getElementById('errorMsg').classList.remove('visible');
+    document.getElementById('resultSection').classList.remove('visible');
+
+    var headlineText = headlines.map(function(h) {
+      return h.outlet + ': "' + h.headline + '"';
+    }).join('\n');
+
+    var systemPrompt = `You are the Clearground News title engine and spin detection system.
+
+Your job: analyze headlines from multiple outlets covering the same story, then produce:
+1. A Clearground title following the exact formula below
+2. Formula breakdown chips
+3. Confidence score (1-5)
+4. Spin classification for each outlet headline
+5. Brief reasoning (2-3 sentences)
+
+CLEARGROUND TITLE FORMULA: [Who/Where] + [neutral past-tense action verb] + [specific number] + [status/signal]
+
+5 RULES:
+- Rule 1: Numbers over adjectives — "5,100 acres" not "devastating fire"
+- Rule 2: Actions not narratives — "Fed held rate" not "Fed refuses to cut"
+- Rule 3: Unknown = stated — "cause under investigation" is valid
+- Rule 4: Highest-confidence fact leads
+- Rule 5: Implications go in the body, not the title
+
+SPIN CLASSIFICATIONS:
+- Loaded: language chosen to provoke emotional response
+- Framing: neutral facts wrapped in narrative
+- Vague: headline withholds specific facts available at time
+- OK: broadly factual and specific
+
+Return ONLY valid JSON, no markdown, no preamble:
+{
+  "title": "the Clearground title",
+  "formula": {
+    "who_where": "the entity or location",
+    "action": "the neutral verb phrase",
+    "number": "the specific quantifiable fact",
+    "status": "the current status or forward signal"
+  },
+  "confidence": 1-5,
+  "spin_analysis": [
+    {
+      "outlet": "outlet name",
+      "original_headline": "the headline",
+      "classification": "Loaded|Framing|Vague|OK",
+      "spin_present": true|false,
+      "description": "one sentence"
+    }
+  ],
+  "reasoning": "2-3 sentences explaining title choice"
+}`;
+
+    var userMsg = 'Analyze these headlines and generate a Clearground title:\n\n' + headlineText;
+
+    try {
+      var resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMsg }]
+        })
+      });
+
+      if (!resp.ok) {
+        var err = await resp.json().catch(function() { return {}; });
+        throw new Error(err.error ? err.error.message : 'API error ' + resp.status);
+      }
+
+      var data = await resp.json();
+      var raw = data.content[0].text.trim();
+      if (raw.startsWith('```')) {
+        raw = raw.split('\n').slice(1).join('\n').replace(/```$/, '').trim();
+      }
+
+      var result = JSON.parse(raw);
+      renderResult(result, headlines);
+
+    } catch (e) {
+      showError('Error: ' + e.message + '. Check your API key and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResult(result, headlines) {
+    // Title
+    document.getElementById('resultTitle').textContent = result.title;
+
+    // Confidence pips
+    var pipsHtml = '';
+    for (var i = 1; i <= 5; i++) {
+      pipsHtml += '<div class="pip' + (i <= result.confidence ? ' filled' : '') + '"></div>';
+    }
+    pipsHtml += '<span style="font-size:12px;color:var(--text-tertiary);margin-left:5px;">' + result.confidence + '/5</span>';
+    document.getElementById('confidencePips').innerHTML = pipsHtml;
+
+    // Formula chips
+    var f = result.formula || {};
+    var chipsHtml = '';
+    if (f.who_where) chipsHtml += '<span class="chip chip-who">Where: ' + escHtml(f.who_where) + '</span>';
+    if (f.action) chipsHtml += '<span class="chip chip-what">What: ' + escHtml(f.action) + '</span>';
+    if (f.number) chipsHtml += '<span class="chip chip-number">Number: ' + escHtml(f.number) + '</span>';
+    if (f.status) chipsHtml += '<span class="chip chip-status">Status: ' + escHtml(f.status) + '</span>';
+    document.getElementById('formulaChips').innerHTML = chipsHtml;
+
+    // Spin table
+    var spinHtml = '';
+    var spinData = result.spin_analysis || [];
+    spinData.forEach(function(s) {
+      var cls = s.classification ? s.classification.toLowerCase() : 'ok';
+      var rowCls = s.spin_present ? 'flagged' : 'ok';
+      var badgeCls = 'badge-' + cls;
+      spinHtml += '<div class="spin-row ' + rowCls + '">' +
+        '<span class="spin-outlet">' + escHtml(s.outlet) + '</span>' +
+        '<span class="spin-badge ' + badgeCls + '">' + escHtml(s.classification) + '</span>' +
+        '<span class="spin-desc">' + escHtml(s.description) + '</span>' +
+        '</div>';
+    });
+    document.getElementById('spinTable').innerHTML = spinHtml;
+
+    // Reasoning
+    document.getElementById('reasoningBody').textContent = result.reasoning || '';
+
+    document.getElementById('resultSection').classList.add('visible');
+  }
+
+  function toggleReasoning(btn) {
+    var body = document.getElementById('reasoningBody');
+    body.classList.toggle('open');
+    btn.textContent = body.classList.contains('open') ? '▴ Hide AI reasoning' : '▾ View AI reasoning';
+  }
+
+  function setLoading(on) {
+    var btn = document.getElementById('generateBtn');
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+    btn.querySelector('.btn-text').textContent = on ? 'Generating…' : 'Generate Clearground title';
+  }
+
+  function showError(msg) {
+    var el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  updateCount();
+</script>
+</body>
+</html>
